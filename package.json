@@ -1,4 +1,14 @@
 {
+  "name": "svg2png-tool",
+  "version": "1.0.0",
+  "private": true,
+  "homepage": "https://yangyuan-zhen.github.io/svg2png-tool/",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d out"
+  },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.4",
     "autoprefixer": "^10.4.21",
@@ -17,12 +27,5 @@
     "@types/node": "22.14.1",
     "@types/react": "^19.1.2",
     "typescript": "5.8.3"
-  },
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d out"
-  },
-  "homepage": "https://yangyuan-zhen.github.io/svg2png-tool/"
+  }
 }
