@@ -21,9 +21,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "export": "next export",
-    "predeploy": "npm run build && npm run export",
+    "predeploy": "npm run build",
     "deploy": "gh-pages -d out"
   },
   "homepage": "https://yangyuan-zhen.github.io/svg2png-tool/"
