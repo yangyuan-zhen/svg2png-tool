@@ -4,6 +4,7 @@
     "autoprefixer": "^10.4.21",
     "canvg": "^4.0.3",
     "file-saver": "^2.0.5",
+    "gh-pages": "^6.3.0",
     "next": "^15.3.0",
     "png-metadata-writer": "^1.0.1",
     "postcss": "^8.5.3",
@@ -20,6 +21,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
-  }
+    "start": "next start",
+    "export": "next export",
+    "predeploy": "npm run build && npm run export",
+    "deploy": "gh-pages -d out"
+  },
+  "homepage": "https://yangyuan-zhen.github.io/svg2png-tool/"
 }
