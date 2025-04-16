@@ -1,6 +1,14 @@
 import React, { useRef, useState } from "react";
 import { saveAs } from "file-saver";
 import { Canvg } from "canvg";
+import ModeSelector, { Mode } from "./ModeSelector";
+import FileUploader from "./FileUploader";
+import CodeEditor from "./CodeEditor";
+import SvgPreview from "./SvgPreview";
+import SizeSettings from "./SizeSettings";
+import StyleOptions from "./StyleOptions";
+import ExportButton from "./ExportButton";
+import StatusMessage from "./StatusMessage";
 
 // 尺寸预设列表，包含尺寸和应用场景
 const SIZE_PRESETS = [
@@ -43,51 +51,14 @@ export default function Svg2PngTool() {
   const [keepRatio, setKeepRatio] = useState<boolean>(true);
   const [originRatio, setOriginRatio] = useState<number>(1);
   const [error, setError] = useState<string>("");
-  const [mode, setMode] = useState<"single" | "batch">("single");
+  const [statusType, setStatusType] = useState<
+    "error" | "success" | "info" | "warning"
+  >("error");
+  const [mode, setMode] = useState<Mode>("single");
   const [preserveStyle, setPreserveStyle] = useState<boolean>(true);
   const [showSizePresets, setShowSizePresets] = useState<boolean>(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [svgFiles, setSvgFiles] = useState<File[]>([]);
-
-  // 设置预设尺寸
-  const handlePresetSelect = (width: number, height: number) => {
-    setWidth(width);
-    setHeight(height);
-    if (keepRatio) {
-      setOriginRatio(width / height);
-    }
-    setShowSizePresets(false);
-  };
-
-  // 处理 SVG 文件上传（支持多文件）
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter((f) =>
-      f.name.endsWith(".svg")
-    );
-    if (files.length === 0) {
-      setError("请上传 SVG 文件");
-      return;
-    }
-    setSvgFiles(files);
-    // 默认显示第一个SVG内容
-    const text = await files[0].text();
-    setSvgCode(text);
-    parseSvgSize(text);
-    setError("");
-
-    // 如果上传了多个文件，自动切换到批量模式
-    if (files.length > 1) {
-      setMode("batch");
-    }
-  };
-
-  // 处理粘贴 SVG 代码
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const text = e.clipboardData.getData("text");
-    setSvgCode(text);
-    parseSvgSize(text);
-    setError("");
-  };
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
   // 解析 SVG 原始宽高
   const parseSvgSize = (code: string) => {
@@ -127,26 +98,6 @@ export default function Svg2PngTool() {
       setWidth(300);
       setHeight(300);
       setOriginRatio(1);
-    }
-  };
-
-  // 宽高输入联动
-  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value);
-    setWidth(value);
-    if (keepRatio) setHeight(Math.round(value / originRatio));
-  };
-  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number(e.target.value);
-    setHeight(value);
-    if (keepRatio) setWidth(Math.round(value * originRatio));
-  };
-
-  // 保持比例勾选
-  const handleKeepRatio = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setKeepRatio(e.target.checked);
-    if (e.target.checked) {
-      setHeight(Math.round(width / originRatio));
     }
   };
 
@@ -197,56 +148,165 @@ export default function Svg2PngTool() {
     }
   }
 
+  // 显示状态消息
+  const showMessage = (
+    message: string,
+    type: "error" | "success" | "info" | "warning" = "error"
+  ) => {
+    setError(message);
+    setStatusType(type);
+
+    // 如果是成功消息，3秒后自动清除
+    if (type === "success") {
+      setTimeout(() => setError(""), 3000);
+    }
+  };
+
+  // 处理模式变更
+  const handleModeChange = (newMode: Mode) => {
+    setMode(newMode);
+  };
+
+  // 处理文件上传
+  const handleFileUpload = (file: File) => {
+    const files = [file];
+    setSvgFiles(files);
+
+    // 读取SVG内容
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setSvgCode(content);
+        parseSvgSize(content);
+      }
+    };
+    reader.readAsText(file);
+
+    setError("");
+  };
+
+  // 批量上传文件
+  const handleFilesUpload = (files: File[]) => {
+    setSvgFiles(files);
+
+    // 如果上传了多个文件，自动切换到批量模式
+    if (files.length > 1) {
+      setMode("batch");
+    }
+
+    // 默认显示第一个SVG内容
+    if (files.length > 0) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        if (content) {
+          setSvgCode(content);
+          parseSvgSize(content);
+        }
+      };
+      reader.readAsText(files[0]);
+    }
+
+    setError("");
+  };
+
+  // 处理SVG代码变更
+  const handleSvgCodeChange = (newCode: string) => {
+    setSvgCode(newCode);
+    parseSvgSize(newCode);
+    setError("");
+  };
+
+  // 处理清除队列
+  const handleClearQueue = () => {
+    setSvgFiles([]);
+    setSvgCode("");
+    setError("");
+    setWidth(300);
+    setHeight(300);
+    setOriginRatio(1);
+    setMode("single");
+  };
+
+  // 处理尺寸预设选择
+  const handlePresetSelect = (preset: { width: number; height: number }) => {
+    setWidth(preset.width);
+    setHeight(preset.height);
+    if (keepRatio) {
+      setOriginRatio(preset.width / preset.height);
+    }
+    setShowSizePresets(false);
+  };
+
+  // 切换保持宽高比
+  const handleToggleAspectRatio = () => {
+    setKeepRatio(!keepRatio);
+    if (!keepRatio) {
+      // 如果要开启宽高比，根据当前宽高重新计算比例
+      setOriginRatio(width / height);
+    }
+  };
+
   // 导出当前 PNG
   const handleExport = async () => {
     try {
       if (!svgCode.trim()) {
-        setError("请先上传或粘贴 SVG");
+        showMessage("请先上传或粘贴 SVG", "error");
         return;
       }
       setError("");
+      setIsExporting(true);
+
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        setError("Canvas 初始化失败");
+        showMessage("Canvas 初始化失败", "error");
+        setIsExporting(false);
         return;
       }
       const svgWithSize = overrideSvgSize(svgCode, width, height);
-      let v;
       try {
-        v = await Canvg.fromString(ctx, svgWithSize, {
+        const v = await Canvg.fromString(ctx, svgWithSize, {
           ignoreAnimation: true,
-          // canvg 不直接支持 width/height 选项，我们通过 SVG 的宽高属性控制
         });
         await v.render();
       } catch (e) {
-        setError("SVG 渲染失败: " + (e instanceof Error ? e.message : e));
+        showMessage(
+          "SVG 渲染失败: " + (e instanceof Error ? e.message : e),
+          "error"
+        );
+        setIsExporting(false);
         return;
       }
       canvas.toBlob((blob) => {
         if (!blob) {
-          setError("PNG 导出失败: Canvas.toBlob 返回空");
+          showMessage("PNG 导出失败: Canvas.toBlob 返回空", "error");
+          setIsExporting(false);
           return;
         }
         saveAs(blob, "export.png");
+        showMessage("导出成功！", "success");
+        setIsExporting(false);
       }, "image/png");
     } catch (e) {
-      setError("导出异常: " + (e instanceof Error ? e.message : e));
+      showMessage("导出异常: " + (e instanceof Error ? e.message : e), "error");
+      setIsExporting(false);
     }
   };
 
   // 批量导出 PNG
   const handleBatchExport = async () => {
     if (svgFiles.length === 0) {
-      setError("请先上传 SVG 文件");
+      showMessage("请先上传 SVG 文件", "error");
       return;
     }
-    setError("");
 
-    // 显示导出进度
-    setError("正在导出...");
+    setError("");
+    setIsExporting(true);
+    showMessage("正在导出...", "info");
 
     try {
       for (let i = 0; i < svgFiles.length; i++) {
@@ -256,7 +316,10 @@ export default function Svg2PngTool() {
         const svgWithSize = overrideSvgSize(text, width, height);
 
         // 更新进度
-        setError(`正在处理 ${i + 1}/${svgFiles.length}: ${file.name}`);
+        showMessage(
+          `正在处理 ${i + 1}/${svgFiles.length}: ${file.name}`,
+          "info"
+        );
 
         const canvas = document.createElement("canvas");
         canvas.width = width;
@@ -283,268 +346,115 @@ export default function Svg2PngTool() {
         }
       }
       // 导出完成
-      setError("导出完成！");
-      setTimeout(() => setError(""), 3000);
+      showMessage(`导出完成！成功导出 ${svgFiles.length} 个文件`, "success");
     } catch (e) {
-      setError("导出异常: " + (e instanceof Error ? e.message : e));
+      showMessage("导出异常: " + (e instanceof Error ? e.message : e), "error");
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  // 预览 SVG
-  const renderPreview = () => {
-    if (!svgCode.trim()) return null;
-    return (
-      <div className="flex justify-center p-2 mb-2 bg-gray-100 rounded border">
-        <div
-          className="overflow-auto max-w-full max-h-60"
-          dangerouslySetInnerHTML={{ __html: svgCode }}
-        />
-      </div>
-    );
-  };
-
   return (
-    <div>
-      <div className="flex flex-col gap-3">
-        {/* 模式切换 */}
-        <div className="flex gap-2 p-2 mb-2 bg-gray-50 rounded">
-          <label className="flex gap-1 items-center">
-            <input
-              type="radio"
-              checked={mode === "single"}
-              onChange={() => setMode("single")}
-            />
-            <span>单个转换</span>
-          </label>
-          <label className="flex gap-1 items-center">
-            <input
-              type="radio"
-              checked={mode === "batch"}
-              onChange={() => setMode("batch")}
-            />
-            <span>批量转换</span>
-          </label>
-        </div>
+    <div className="flex flex-col gap-4">
+      {/* 模式选择器 */}
+      <div className="mb-2">
+        <ModeSelector mode={mode} onModeChange={handleModeChange} />
+      </div>
 
-        {/* 上传 */}
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <label className="font-medium">上传 SVG 文件</label>
-            {svgFiles.length > 0 && (
+      {/* 文件上传 */}
+      <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <h3 className="mb-2 text-lg font-medium">SVG 文件上传</h3>
+        <div className="mb-4">
+          <FileUploader
+            onFileUpload={handleFileUpload}
+            onSvgContentChange={handleSvgCodeChange}
+            accept=".svg"
+            multiple={mode === "batch"}
+          />
+
+          {/* 文件队列和清除按钮 */}
+          {svgFiles.length > 0 && (
+            <div className="flex justify-between items-center mt-2">
+              <div className="text-sm text-gray-600">
+                已选择 {svgFiles.length} 个文件
+              </div>
               <button
-                className="px-2 py-1 text-xs text-white bg-red-500 rounded hover:bg-red-600"
-                onClick={() => {
-                  setSvgFiles([]);
-                  setSvgCode("");
-                  setError("");
-                  setWidth(300);
-                  setHeight(300);
-                  setOriginRatio(1);
-                  // 直接设置模式，确保立即切换
-                  setTimeout(() => {
-                    setMode("single");
-                  }, 0);
-                }}
+                className="px-3 py-1 text-sm text-white bg-red-500 rounded transition hover:bg-red-600"
+                onClick={handleClearQueue}
               >
                 清除队列
               </button>
-            )}
-          </div>
-          <div
-            className="flex relative flex-col justify-center items-center p-6 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed transition cursor-pointer hover:border-blue-400 hover:text-blue-600"
-            onClick={(e) => {
-              // 阻止事件冒泡，防止触发两次文件选择
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onDrop={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const files = Array.from(e.dataTransfer.files || []).filter((f) =>
-                f.name.endsWith(".svg")
-              );
-              if (files.length > 0) {
-                setSvgFiles(files);
-                // 如果上传了多个文件，自动切换到批量模式
-                if (files.length > 1) {
-                  setMode("batch");
-                }
-                const text = await files[0].text();
-                setSvgCode(text);
-                parseSvgSize(text);
-                setError("");
-              } else {
-                setError("请上传 SVG 文件");
-              }
-            }}
-            style={{ minHeight: 100 }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="mb-2 w-10 h-10"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16V4a1 1 0 011-1h8a1 1 0 011 1v12m-4 4h-4a1 1 0 01-1-1v-4h6v4a1 1 0 01-1 1z"
-              />
-            </svg>
-            <span className="text-sm">点击或拖拽 SVG 文件到此处上传</span>
-            <span className="mt-1 text-xs text-gray-400">
-              支持批量上传，按住 Ctrl 键选择多个文件，或同时拖入多个文件
-            </span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".svg"
-              multiple
-              className="absolute inset-0 opacity-0 pointer-events-none -z-10" // 防止直接点击，改用外层div触发
-              onChange={handleFileChange}
-              tabIndex={-1}
-            />
-            {svgFiles.length > 0 && (
-              <div className="mt-2 text-xs text-green-600">
-                已选择文件：
-                {svgFiles.length > 3
-                  ? `${svgFiles.length} 个文件`
-                  : svgFiles.map((f) => f.name).join("、")}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* 粘贴SVG代码 - 仅在单个模式下显示 */}
+        {/* 代码编辑器 - 仅在单个模式下显示 */}
         {mode === "single" && (
-          <div>
-            <label className="block mb-1 font-medium">或粘贴 SVG 代码</label>
-            <textarea
-              className="p-2 w-full h-28 text-sm rounded border resize-none"
-              placeholder="<svg>...</svg>"
+          <div className="mb-4">
+            <CodeEditor
               value={svgCode}
-              onChange={(e) => {
-                setSvgCode(e.target.value);
-                parseSvgSize(e.target.value);
-                setError("");
-              }}
-              onPaste={handlePaste}
+              onChange={handleSvgCodeChange}
+              placeholder="在此粘贴 SVG 代码或上传 SVG 文件"
             />
           </div>
         )}
+      </div>
 
-        {/* 预览 - 仅在单个模式下显示 */}
-        {mode === "single" && renderPreview()}
+      {/* SVG 预览 - 仅在单个模式下显示 */}
+      {mode === "single" && svgCode && (
+        <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="mb-2 text-lg font-medium">SVG 预览</h3>
+          <SvgPreview
+            svgContent={svgCode}
+            width={width}
+            height={height}
+            keepAspectRatio={keepRatio}
+            error={error}
+          />
+        </div>
+      )}
 
-        {/* 宽高设置 */}
-        <div className="mb-2">
-          <div className="flex justify-between items-center">
-            <div className="mb-1 text-base font-medium">导出尺寸设置</div>
-            <button
-              className="text-xs text-blue-600 hover:text-blue-800"
-              onClick={() => setShowSizePresets(!showSizePresets)}
-            >
-              {showSizePresets ? "隐藏预设尺寸" : "显示常用尺寸预设"}
-            </button>
-          </div>
-
-          {/* 尺寸预设面板 */}
-          {showSizePresets && (
-            <div className="p-3 mb-3 bg-gray-50 rounded border">
-              <div className="mb-2 text-sm font-medium">常用尺寸预设：</div>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                {SIZE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    className="flex justify-between items-center p-2 text-sm text-left bg-white rounded border hover:bg-blue-50"
-                    onClick={() =>
-                      handlePresetSelect(preset.width, preset.height)
-                    }
-                  >
-                    <span className="font-medium">{preset.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {preset.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 items-center">
-            <label className="font-medium">宽度(px)</label>
-            <input
-              type="number"
-              min={1}
-              className="p-1 w-20 rounded border"
-              value={width}
-              onChange={handleWidthChange}
-            />
-            <label className="font-medium">高度(px)</label>
-            <input
-              type="number"
-              min={1}
-              className="p-1 w-20 rounded border"
-              value={height}
-              onChange={handleHeightChange}
-            />
-            <label className="flex gap-1 items-center ml-2">
-              <input
-                type="checkbox"
-                checked={keepRatio}
-                onChange={handleKeepRatio}
-              />
-              保持宽高比
-            </label>
-          </div>
+      {/* 尺寸设置 */}
+      <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <h3 className="mb-2 text-lg font-medium">导出设置</h3>
+        <div className="mb-4">
+          <SizeSettings
+            width={width}
+            height={height}
+            onWidthChange={setWidth}
+            onHeightChange={setHeight}
+            aspectRatio={originRatio}
+            lockAspectRatio={keepRatio}
+            onToggleAspectRatio={handleToggleAspectRatio}
+            presets={SIZE_PRESETS}
+            onPresetSelect={handlePresetSelect}
+          />
         </div>
 
         {/* 样式设置 */}
-        <div className="flex gap-2 items-center">
-          <label className="flex gap-1 items-center">
-            <input
-              type="checkbox"
-              checked={preserveStyle}
-              onChange={(e) => setPreserveStyle(e.target.checked)}
-            />
-            保持 SVG 原始样式
-          </label>
+        <div className="pt-4 mt-4 border-t">
+          <StyleOptions
+            preserveStyle={preserveStyle}
+            onPreserveStyleChange={setPreserveStyle}
+          />
         </div>
+      </div>
 
-        {/* 导出按钮 */}
-        {mode === "single" ? (
-          <button
-            className="py-2 mt-2 w-full font-bold text-white bg-blue-600 rounded transition hover:bg-blue-700"
-            onClick={handleExport}
-          >
-            导出当前 PNG
-          </button>
-        ) : (
-          <button
-            className="py-2 mt-2 w-full font-bold text-white bg-green-600 rounded transition hover:bg-green-700"
-            onClick={handleBatchExport}
-            disabled={svgFiles.length === 0}
-          >
-            批量导出所有 PNG
-          </button>
-        )}
+      {/* 导出按钮和状态信息 */}
+      <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <ExportButton
+          mode={mode}
+          onExport={mode === "single" ? handleExport : handleBatchExport}
+          isExporting={isExporting}
+          fileCount={svgFiles.length}
+          disabled={
+            (mode === "single" && !svgCode.trim()) ||
+            (mode === "batch" && svgFiles.length === 0)
+          }
+        />
 
-        {/* 错误提示 */}
-        {error && (
-          <div
-            className={`mt-1 text-sm ${
-              error.includes("导出完成") ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {error}
-          </div>
-        )}
+        {/* 错误/状态信息 */}
+        {error && <StatusMessage message={error} type={statusType} />}
       </div>
     </div>
   );
