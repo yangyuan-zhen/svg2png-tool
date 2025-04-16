@@ -1,8 +1,6 @@
 import React, { useRef, useState } from "react";
 import { saveAs } from "file-saver";
 import { Canvg } from "canvg";
-// @ts-ignore
-import writePngMetadata from "png-metadata-writer";
 
 export default function Svg2PngTool() {
   const [svgCode, setSvgCode] = useState<string>("");
@@ -11,18 +9,21 @@ export default function Svg2PngTool() {
   const [keepRatio, setKeepRatio] = useState<boolean>(true);
   const [originRatio, setOriginRatio] = useState<number>(1);
   const [error, setError] = useState<string>("");
-  const [dpi, setDpi] = useState<number>(300);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [svgFiles, setSvgFiles] = useState<File[]>([]);
 
-  // 处理 SVG 文件上传
+  // 处理 SVG 文件上传（支持多文件）
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith(".svg")) {
+    const files = Array.from(e.target.files || []).filter((f) =>
+      f.name.endsWith(".svg")
+    );
+    if (files.length === 0) {
       setError("请上传 SVG 文件");
       return;
     }
-    const text = await file.text();
+    setSvgFiles(files);
+    // 默认显示第一个SVG内容
+    const text = await files[0].text();
     setSvgCode(text);
     parseSvgSize(text);
     setError("");
@@ -97,7 +98,23 @@ export default function Svg2PngTool() {
     }
   };
 
-  // 导出 PNG
+  // 强制替换 SVG 的 width/height 属性
+  function overrideSvgSize(svg: string, w: number, h: number): string {
+    let s = svg;
+    if (/width="[^"]*"/.test(s)) {
+      s = s.replace(/width="[^"]*"/, `width="${w}"`);
+    } else {
+      s = s.replace(/<svg/, `<svg width="${w}"`);
+    }
+    if (/height="[^"]*"/.test(s)) {
+      s = s.replace(/height="[^"]*"/, `height="${h}"`);
+    } else {
+      s = s.replace(/<svg/, `<svg height="${h}"`);
+    }
+    return s;
+  }
+
+  // 导出当前 PNG
   const handleExport = async () => {
     try {
       if (!svgCode.trim()) {
@@ -112,21 +129,6 @@ export default function Svg2PngTool() {
       if (!ctx) {
         setError("Canvas 初始化失败");
         return;
-      }
-      // 强制替换 SVG 的 width/height 属性
-      function overrideSvgSize(svg: string, w: number, h: number): string {
-        let s = svg;
-        if (/width="[^"]*"/.test(s)) {
-          s = s.replace(/width="[^"]*"/, `width=\"${w}\"`);
-        } else {
-          s = s.replace(/<svg/, `<svg width=\"${w}\"`);
-        }
-        if (/height="[^"]*"/.test(s)) {
-          s = s.replace(/height="[^"]*"/, `height=\"${h}\"`);
-        } else {
-          s = s.replace(/<svg/, `<svg height=\"${h}\"`);
-        }
-        return s;
       }
       const svgWithSize = overrideSvgSize(svgCode, width, height);
       let v;
@@ -146,6 +148,41 @@ export default function Svg2PngTool() {
       }, "image/png");
     } catch (e) {
       setError("导出异常: " + (e instanceof Error ? e.message : e));
+    }
+  };
+
+  // 批量导出 PNG
+  const handleBatchExport = async () => {
+    if (svgFiles.length === 0) {
+      setError("请先上传 SVG 文件");
+      return;
+    }
+    setError("");
+    for (const file of svgFiles) {
+      const text = await file.text();
+      const svgWithSize = overrideSvgSize(text, width, height);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      try {
+        const v = await Canvg.fromString(ctx, svgWithSize, {
+          ignoreAnimation: true,
+        });
+        await v.render();
+        await new Promise<void>((resolve) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const pngName = file.name.replace(/\.svg$/i, ".png");
+              saveAs(blob, pngName);
+            }
+            resolve();
+          }, "image/png");
+        });
+      } catch (e) {
+        // 忽略单个文件错误
+      }
     }
   };
 
@@ -178,9 +215,12 @@ export default function Svg2PngTool() {
             onDrop={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              const file = e.dataTransfer.files?.[0];
-              if (file && file.name.endsWith(".svg")) {
-                const text = await file.text();
+              const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+                f.name.endsWith(".svg")
+              );
+              if (files.length > 0) {
+                setSvgFiles(files);
+                const text = await files[0].text();
                 setSvgCode(text);
                 parseSvgSize(text);
                 setError("");
@@ -205,17 +245,23 @@ export default function Svg2PngTool() {
               />
             </svg>
             <span className="text-sm">点击或拖拽 SVG 文件到此处上传</span>
+            <span className="mt-1 text-xs text-gray-400">
+              支持批量上传，按住 Ctrl 键选择多个文件，或同时拖入多个文件
+            </span>
             <input
               ref={fileInputRef}
               type="file"
               accept=".svg"
+              multiple
               className="absolute inset-0 opacity-0 cursor-pointer"
               style={{ width: "100%", height: "100%" }}
               onChange={handleFileChange}
               tabIndex={-1}
             />
-            {svgCode && (
-              <span className="mt-2 text-xs text-green-600">已选择文件</span>
+            {svgFiles.length > 0 && (
+              <div className="mt-2 text-xs text-green-600">
+                已选择文件：{svgFiles.map((f) => f.name).join("、")}
+              </div>
             )}
           </div>
         </div>
@@ -267,7 +313,14 @@ export default function Svg2PngTool() {
           className="py-2 mt-2 w-full font-bold text-white bg-blue-600 rounded transition hover:bg-blue-700"
           onClick={handleExport}
         >
-          导出 PNG
+          导出当前 PNG
+        </button>
+        <button
+          className="py-2 mt-2 w-full font-bold text-white bg-green-600 rounded transition hover:bg-green-700"
+          onClick={handleBatchExport}
+          disabled={svgFiles.length === 0}
+        >
+          批量导出所有 PNG
         </button>
         {/* 错误提示 */}
         {error && <div className="mt-1 text-sm text-red-500">{error}</div>}
