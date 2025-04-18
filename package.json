@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "predeploy": "npm run build",
+    "predeploy": "cross-env GITHUB_PAGES=true npm run build",
     "deploy": "gh-pages -d out"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "@types/file-saver": "^2.0.7",
     "@types/node": "22.14.1",
     "@types/react": "^19.1.2",
+    "cross-env": "^7.0.3",
     "typescript": "5.8.3"
   }
 }

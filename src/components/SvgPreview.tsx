@@ -21,15 +21,15 @@ export default function SvgPreview({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-40 bg-gray-50 rounded-lg border">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className="flex justify-center items-center h-40 bg-gray-50 rounded-lg border">
+        <div className="w-8 h-8 rounded-full border-b-2 border-gray-900 animate-spin"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-40 bg-red-50 text-red-500 rounded-lg border border-red-200">
+      <div className="flex justify-center items-center h-40 text-red-500 bg-red-50 rounded-lg border border-red-200">
         <p>{error}</p>
       </div>
     );
@@ -37,7 +37,7 @@ export default function SvgPreview({
 
   if (!svgContent) {
     return (
-      <div className="flex items-center justify-center h-40 bg-gray-50 rounded-lg border">
+      <div className="flex justify-center items-center h-40 bg-gray-50 rounded-lg border">
         <p className="text-gray-400">无预览内容</p>
       </div>
     );
@@ -57,7 +57,7 @@ export default function SvgPreview({
   return (
     <div
       ref={containerRef}
-      className="flex items-center justify-center bg-gray-50 rounded-lg border overflow-hidden"
+      className="flex overflow-hidden justify-center items-center bg-gray-50 rounded-lg border"
       style={{ minHeight: "200px", position: "relative" }}
     >
       <img
