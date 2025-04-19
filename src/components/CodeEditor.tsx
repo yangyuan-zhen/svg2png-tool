@@ -17,9 +17,11 @@ export default function CodeEditor({
   maxHeight = "400px",
   label = "SVG代码",
 }: CodeEditorProps) {
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     setLocalValue(value);
   }, [value]);
 
@@ -31,7 +33,16 @@ export default function CodeEditor({
 
   // 检查输入的内容是否为有效的SVG代码
   const isValidSvg = (content: string): boolean => {
-    return content.trim().startsWith("<svg") && content.includes("</svg>");
+    if (typeof window === "undefined") return true; // 服务器端直接返回true
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, "image/svg+xml");
+      const svg = doc.querySelector("svg");
+      return svg !== null;
+    } catch {
+      return false;
+    }
   };
 
   // 处理粘贴事件，提取SVG部分
@@ -54,6 +65,16 @@ export default function CodeEditor({
     setLocalValue("");
     onChange("");
   };
+
+  if (!isMounted) {
+    return (
+      <div className="w-full" style={{ minHeight, maxHeight }}>
+        <div className="flex justify-center items-center h-full">
+          <p className="text-gray-500">加载编辑器...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -90,14 +111,14 @@ export default function CodeEditor({
         />
         {!isValidSvg(localValue) && localValue.trim() !== "" && (
           <p className="mt-1 text-xs text-red-500">
-            输入的内容不是有效的SVG代码
+            无法解析SVG内容，请检查代码是否正确
           </p>
         )}
         {localValue.trim() === "" && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50">
+          <div className="flex absolute inset-0 justify-center items-center opacity-50 pointer-events-none">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 text-gray-400"
+              className="w-6 h-6 text-gray-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
