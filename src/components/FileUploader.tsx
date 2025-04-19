@@ -86,23 +86,29 @@ export default function FileUploader({
   };
 
   return (
-    <div className="w-full">
+    <div className="space-y-3">
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center ${
+        className={`relative border-2 border-dashed rounded-lg transition-colors duration-200 ${
           isDragging
             ? "border-blue-400 bg-blue-50"
-            : error
-            ? "border-red-300 bg-red-50"
-            : "border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100"
-        } transition-colors duration-150 cursor-pointer`}
+            : "border-gray-300 hover:border-gray-400 bg-white"
+        }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => document.getElementById("file-upload")?.click()}
       >
-        <div className="flex flex-col items-center justify-center space-y-2">
+        <input
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          multiple={multiple}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+        />
+        <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
           <svg
-            className={`w-12 h-12 ${error ? "text-red-400" : "text-gray-400"}`}
+            className={`w-12 h-12 mb-2 ${
+              isDragging ? "text-blue-500" : "text-gray-400"
+            } transition-colors duration-200`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -111,30 +117,41 @@ export default function FileUploader({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.5}
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             />
           </svg>
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">点击上传</span> 或拖放SVG文件
-          </div>
-          <p className="text-xs text-gray-500">
-            仅支持SVG文件，最大{maxSize}MB
+          <p className="mb-1 text-sm text-gray-700">
+            <span className="font-medium">
+              {isDragging ? "释放文件上传" : "点击上传"}
+            </span>{" "}
+            或拖拽文件到这里
           </p>
-          {error && (
-            <p className="text-sm text-red-500 font-medium mt-2">{error}</p>
-          )}
+          <p className="text-xs text-gray-500">支持SVG文件 (最大{maxSize}MB)</p>
         </div>
       </div>
-      <input
-        id="file-upload"
-        name="file-upload"
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        onChange={handleFileChange}
-        className="hidden"
-      />
+
+      {error && (
+        <div className="px-3 py-2 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
+          <span className="flex items-center">
+            <svg
+              className="w-4 h-4 mr-1.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {error}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

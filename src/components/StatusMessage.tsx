@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 export type StatusMessageProps = {
   message: string;
@@ -86,10 +86,58 @@ export default function StatusMessage({
       break;
   }
 
+  // 根据消息类型选择不同的动画效果
+  const animationClass =
+    type === "success"
+      ? "animate-fade-in-down"
+      : type === "error"
+      ? "animate-pulse"
+      : "animate-fade-in";
+
+  // 添加必要的CSS动画，但只在客户端执行
+  useEffect(() => {
+    // 确保这部分代码只在客户端执行
+    if (typeof document !== "undefined") {
+      const styleId = "status-message-animations";
+      // 检查样式是否已存在，防止重复添加
+      if (!document.getElementById(styleId)) {
+        const styleSheet = document.createElement("style");
+        styleSheet.id = styleId;
+        styleSheet.textContent = `
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+          }
+        `;
+        document.head.appendChild(styleSheet);
+      }
+    }
+  }, []);
+
   return (
-    <div className={`flex p-3 mt-2 rounded border ${colorClass}`}>
-      {icon && <div className="flex-shrink-0 mr-2">{icon}</div>}
-      <div className="text-sm">{message}</div>
+    <div
+      className={`flex p-4 mt-3 rounded-md border shadow-sm ${colorClass} ${animationClass}`}
+      style={{
+        animation:
+          type === "success"
+            ? "fadeIn 0.5s ease-in-out"
+            : type === "error"
+            ? "shake 0.5s ease-in-out"
+            : "fadeIn 0.3s ease-in-out",
+      }}
+    >
+      {icon && (
+        <div className="flex-shrink-0 mr-3">
+          <div className={type === "info" ? "animate-pulse" : ""}>{icon}</div>
+        </div>
+      )}
+      <div className="flex-1 text-sm font-medium">{message}</div>
     </div>
   );
 }
