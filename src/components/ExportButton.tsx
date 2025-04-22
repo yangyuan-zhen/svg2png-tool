@@ -6,6 +6,7 @@ type ExportButtonProps = {
   isExporting: boolean;
   fileCount?: number;
   disabled?: boolean;
+  format?: "png" | "jpg";
 };
 
 export default function ExportButton({
@@ -14,15 +15,17 @@ export default function ExportButton({
   isExporting,
   fileCount = 0,
   disabled = false,
+  format = "png",
 }: ExportButtonProps) {
   const isSingleMode = mode === "single";
+  const formatText = format.toUpperCase();
 
   // 根据模式和状态决定按钮文字
   const buttonText = isExporting
     ? "正在导出..."
     : isSingleMode
-    ? "导出 PNG"
-    : `批量导出 ${fileCount} 个文件`;
+    ? `导出 ${formatText}`
+    : `批量导出 ${fileCount} 个${formatText}文件`;
 
   // 根据模式决定按钮颜色
   const buttonClass = isSingleMode

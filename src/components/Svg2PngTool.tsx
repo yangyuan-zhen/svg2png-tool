@@ -60,6 +60,7 @@ export default function Svg2PngTool() {
   const [svgFiles, setSvgFiles] = useState<File[]>([]);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isBrowser, setIsBrowser] = useState<boolean>(false);
+  const [exportFormat, setExportFormat] = useState<"png" | "jpg">("png");
 
   // 在组件挂载时检查是否在浏览器环境
   useEffect(() => {
@@ -266,7 +267,7 @@ export default function Svg2PngTool() {
     }
   };
 
-  // 导出当前 PNG - 确保只在浏览器环境执行
+  // 导出当前 PNG/JPG - 确保只在浏览器环境执行
   const handleExport = async () => {
     if (!isBrowser) {
       showMessage("此功能只能在浏览器中使用", "error");
@@ -304,23 +305,28 @@ export default function Svg2PngTool() {
         setIsExporting(false);
         return;
       }
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          showMessage("PNG 导出失败: Canvas.toBlob 返回空", "error");
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            showMessage("导出失败: Canvas.toBlob 返回空", "error");
+            setIsExporting(false);
+            return;
+          }
+          const extension = exportFormat === "png" ? ".png" : ".jpg";
+          saveAs(blob, `export${extension}`);
+          showMessage("导出成功！", "success");
           setIsExporting(false);
-          return;
-        }
-        saveAs(blob, "export.png");
-        showMessage("导出成功！", "success");
-        setIsExporting(false);
-      }, "image/png");
+        },
+        exportFormat === "png" ? "image/png" : "image/jpeg",
+        exportFormat === "jpg" ? 0.9 : undefined // JPEG质量
+      );
     } catch (e) {
       showMessage("导出异常: " + (e instanceof Error ? e.message : e), "error");
       setIsExporting(false);
     }
   };
 
-  // 批量导出 PNG - 确保只在浏览器环境执行
+  // 批量导出 PNG/JPG - 确保只在浏览器环境执行
   const handleBatchExport = async () => {
     if (!isBrowser) {
       showMessage("此功能只能在浏览器中使用", "error");
@@ -360,13 +366,18 @@ export default function Svg2PngTool() {
           });
           await v.render();
           await new Promise<void>((resolve) => {
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const pngName = file.name.replace(/\.svg$/i, ".png");
-                saveAs(blob, pngName);
-              }
-              resolve();
-            }, "image/png");
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const extension = exportFormat === "png" ? ".png" : ".jpg";
+                  const fileName = file.name.replace(/\.svg$/i, extension);
+                  saveAs(blob, fileName);
+                }
+                resolve();
+              },
+              exportFormat === "png" ? "image/png" : "image/jpeg",
+              exportFormat === "jpg" ? 0.9 : undefined
+            );
           });
         } catch (e) {
           // 记录单个文件错误但继续处理
@@ -531,12 +542,75 @@ export default function Svg2PngTool() {
               />
             </div>
 
+            {/* 导出格式选择 */}
+            <div className="pb-4 mb-4 border-b border-gray-100">
+              <h4 className="mb-2 text-xs font-medium text-gray-600">
+                导出格式
+              </h4>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setExportFormat("png")}
+                  className={`flex-1 py-2 px-3 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
+                    exportFormat === "png"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  PNG格式
+                </button>
+                <button
+                  onClick={() => setExportFormat("jpg")}
+                  className={`flex-1 py-2 px-3 text-sm font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
+                    exportFormat === "jpg"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  JPG格式
+                </button>
+              </div>
+              {exportFormat === "jpg" && (
+                <p className="mt-2 text-xs text-gray-500">
+                  注意：JPG格式不支持透明背景
+                </p>
+              )}
+            </div>
+
             {/* 导出按钮 */}
             <ExportButton
               mode={mode}
               onExport={mode === "single" ? handleExport : handleBatchExport}
               isExporting={isExporting}
               fileCount={svgFiles.length}
+              format={exportFormat}
               disabled={
                 (mode === "single" && !svgCode.trim()) ||
                 (mode === "batch" && svgFiles.length === 0)
