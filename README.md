@@ -20,7 +20,7 @@
 
 ## 界面预览图
 
-![界面预览图](@src/assets/view.jpg)
+![界面预览图](./src/assets/view.jpg)
 
 ## 快速开始
 
